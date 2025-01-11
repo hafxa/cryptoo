@@ -1,9 +1,6 @@
 #/bin/zsh
 import secrets
 
-NK = 4
-NR = 10
-
 '''
 KeyExpansion(byte key[4*Nk], word w[Nb*(Nr+1)], Nk)
 begin
@@ -27,9 +24,8 @@ word temp
 end'''
 
 class AESKeyExpansion:
-    def __init__(self,NK=4,NR = 10,key='00000000000000000000000000000000'):
+    def __init__(self,NK,key):
         self.NK = NK
-        self.NR = NR
         self.key = key
         self.sbox =[[0x63, 0x7C, 0x77, 0x7B, 0xF2, 0x6B, 0x6F, 0xC5, 0x30, 0x01, 0x67, 0x2B, 0xFE, 0xD7, 0xAB, 0x76],
                     [0xCA, 0x82, 0xC9, 0x7D, 0xFA, 0x59, 0x47, 0xF0, 0xAD, 0xD4, 0xA2, 0xAF, 0x9C, 0xA4, 0x72, 0xC0],
@@ -51,13 +47,13 @@ class AESKeyExpansion:
         self.rcon = [0x00, 0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40,
                     0x80, 0x1B, 0x36, 0x6C, 0xD8, 0xAB, 0x4D, 0x9A,
                     0x2F, 0x5E, 0xBC, 0x63, 0xC6, 0x97, 0x35, 0x6A,
-                    0xD4, 0xB3, 0x7D, 0xFA, 0xEF, 0xC5, 0x91, 0x39,
-                    ]
+                    0xD4, 0xB3, 0x7D, 0xFA, 0xEF, 0xC5, 0x91, 0x39]
         
 
     def word_list(self,key,word_list):
-        for i in range(0,32,8):
+        for i in range(0,len(key),8):
             word_list.extend([key[i:i+8]])
+        
         return word_list
     
     #rot word takes a word [a0,a1,a2,a3] and returns [a1,a2,a3,a4]
@@ -88,7 +84,7 @@ class AESKeyExpansion:
             new_list.append(word[i:i+2])
         return new_list
 
-    def xor_fuc(self,arg1,arg2):
+    def xor_func(self,arg1,arg2):
         result = []
         for i in range(4):
             xor_result = hex(int(arg1[i],16) ^ int(arg2[i],16))
@@ -105,27 +101,40 @@ class AESKeyExpansion:
     def extra_rounds(self,prev,round):
         temp = self.sub_word(self.rot_word(prev))
         r_cons = self.r_con(round)
-        return self.xor_fuc(temp,r_cons)
-
-
+        return self.xor_func(temp,r_cons)
+    
     def key_exp(self):
+        if self.NK==4:
+            NB,NR = 43,10
+        elif self.NK==6:
+            NB,NR = 51,12
+        elif self.NK==8:
+            NB,NR = 59,14
+        else:
+            exit('Wrong key length')
+        temp = []
+        arr = []
+        arr.extend(self.word_list(self.key,[]))
+        i = self.NK
+        total = NB
+        for i in range(self.NK,total+1):
+            temp = self.word_exp(arr[i-1])
+            if i%self.NK==0:
+                temp = self.xor_func(self.sub_word(self.rot_word(temp)),self.r_con(i // self.NK))  
+            elif i%self.NK==4 and self.NK>6: #for nk = 6 and nk = 8
+                temp = self.sub_word(temp)
+            temp = self.xor_func(temp,self.word_exp(arr[i - self.NK]))
+            arr.append(self.join_word(temp))
+        dict = {}
         i = 0
-        my_dict = {}
-        wi = []
-        wi.extend(self.word_list(self.key,[]))
-        my_dict[i] = wi.copy()
-        i+=1
-        for i in range(1,11):
-            new_wi = []
-            for k in range(4):
-                if k==0:
-                    temp = self.word_exp(my_dict[i-1][-1])
-                    temp = self.extra_rounds(temp,i)
-                else:
-                    temp = self.word_exp(new_wi[k-1])
-                wn = self.word_exp(my_dict[i-1][k])
-                round4 = self.xor_fuc(temp,wn)
-                new_wi.append(self.join_word(round4))
-            my_dict[i] = new_wi.copy()
-            wi = new_wi.copy()
-        return my_dict
+        for k in range(NR+1):
+            dict[k] = [arr[i],arr[i+1],arr[i+2],arr[i+3]]
+            i+=4
+        return dict
+            
+       
+
+    
+
+key = AESKeyExpansion(8,'603deb1015ca71be2b73aef0857d77811f352c073b6108d72d9810a30914dff4').key_exp()
+print(key)

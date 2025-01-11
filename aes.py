@@ -5,9 +5,9 @@ import numpy
 import argparse 
 
 
-NK = 4 #We'll start with 128bit 
-NR = 10 #This indicates the number of key expansion rounds we need
-
+NK = 6 #We'll start with 128bit 
+NR = 9#This indicates the number of key expansion rounds we need
+NB = 51 #Total number of words
 
 sbox = [[0x63, 0x7C, 0x77, 0x7B, 0xF2, 0x6B, 0x6F, 0xC5, 0x30, 0x01, 0x67, 0x2B, 0xFE, 0xD7, 0xAB, 0x76],
         [0xCA, 0x82, 0xC9, 0x7D, 0xFA, 0x59, 0x47, 0xF0, 0xAD, 0xD4, 0xA2, 0xAF, 0x9C, 0xA4, 0x72, 0xC0],
@@ -59,7 +59,7 @@ inv_mix_columns_matrix = [
 
 
 #To the sane mind the below code may not make sense, but please bear with me
-def correct_list(word):#
+def correct_list(word):
     new_list = []
     for j in range(0,7,2):
         for i in range(j,j+25,8):
@@ -109,7 +109,7 @@ def add_round_key(state1,state2):
     return hex_to_state(new_state)
 
 def sub_bytes(state):
-    #so same thing as before really
+    #so same thing as before[key expansion] really
     new_state = []
     for i in state:
         for word in i:
@@ -123,8 +123,7 @@ def shift_row(state):
     return state
 
 
-#This obviously isn't my code, but it's used to multiply 
-#two bytes in galois field. Pretty cool stuff.
+#Used to multiply two bytes in galois field
 def gm(a,b):
     p = 0 #Product accumulator
     while a!=0 and b!=0: #iterate over the numbers
@@ -170,12 +169,12 @@ def round_key(key):
     return hex_to_state(string)
 
 
-def encrypt(plaintext,key):
+def encrypt(plaintext,key,NK):
     state = hex_to_state(plaintext)
     state1 = round_key(key[0])
     state = add_round_key(state,state1)
     i = 1
-    while i < 10:
+    while i < NK-1:
         state2 = round_key(key[i])
         state = add_round_key(mix_column(shift_row(sub_bytes(state)),mix_column_matrix),state2) 
         i+=1
@@ -186,12 +185,13 @@ def encrypt(plaintext,key):
 
 
 
-def decrypt(ciphertext,key):
+def decrypt(ciphertext,key,NR):
     #SO in round 0, we only xor with round key
+    i = NR - 1
     state = hex_to_state(ciphertext)
-    state1 = round_key(key[10])
+    state1 = round_key(key[i])
     state = add_round_key(state,state1)
-    i = 9
+    i -=1
     while i > 0:
         state2 = round_key(key[i])
         state = mix_column(add_round_key(inv_shift_rows(inv_sub_bytes(state)),state2),inv_mix_columns_matrix) 
@@ -209,44 +209,6 @@ def word_split(word):
             list.append(word[block:block+32])
     return list
 
-
-def ecb(word,key):
-    #we will start with ecb because it's the simplest
-    #brb gotta research it lol
-    word_list = word_split(word)
-    for word in word_list:
-        encrypt(word,key)
-    return word_list
-
-
-def cbc_encrypt(word,key,iv):
-    #Encrypting cbc mode
-    word_list = word_split(word)
-    word_list[0] = encrypt(add_round_key(hex_to_state(word_list[0]),hex_to_state(iv)),key)
-    for i in range(1,len(word_list)):
-        new_pt = add_round_key(hex_to_state(word_list[i]),hex_to_state(word_list[i-1]))
-        word_list[i] = encrypt(new_pt,key)
-    return word_list
-
-
-def cbc_decrypt(ciphertext,key,iv):
-    #Decrypting cbc mode
-    word_list = word_split(ciphertext)
-    new_word = []
-    new_word.append(add_round_key(hex_to_state(decrypt(word_list[0],key)),hex_to_state(iv)))
-    for i in range(1,len(word_list)):
-        new_word.append(state_to_string(add_round_key(hex_to_state(decrypt(word_list[i],key))),hex_to_state(word_list[i-1])))
-    return new_word
-
-        
-def ctr_encrypt(word,key,counter):
-    #Implementing ctr mode..also works for decryption funnily enough
-    word_list = word_split(word)
-    for i in range(len(word_list)):
-        word_list[i] = state_to_string(add_round_key(hex_to_state(word_list[i]),hex_to_state(encrypt(hex_to_state(counter),key))))
-        counter = hex(int(counter,16)+1).removeprefix('0x')
-    return word_list
-
 def pad(word):
     #This is supposed to be PCKS#7 padding...if there's a mistake please let me know
     if len(word)%32==0:
@@ -262,7 +224,55 @@ def unpad(text):
     #I spent exactly 2 minutes on this and it shows
     #we know that all inputs are padded, so it makes it a lot easier to remove padding
     num = int(text[-2:],16)*2
+    if num<1 or num>32:
+        return text
     return text[:(len(text)-num)]
+
+
+def ecb_encrypt(word,key,NK):
+    #we will start with ecb because it's the simplest
+    #brb gotta research it lol
+    word_list = word_split(word)
+    for word in range(len(word_list)):
+        word_list[word] = encrypt(word_list[word],key,NK)
+    return ''.join(word_list)
+
+def ecb_decrypt(word,key,NK):
+    #we will start with ecb because it's the simplest
+    #brb gotta research it lol
+    word_list = word_split(word)
+    for word in range(len(word_list)):
+        word_list[word] = decrypt(word_list[word],key,NK)
+    return ''.join(word_list)
+
+
+def cbc_encrypt(word,key,NK,iv):
+    #Encrypting cbc mode
+    word_list = word_split(word)
+    word_list[0] = encrypt(add_round_key(hex_to_state(word_list[0]),hex_to_state(iv)),key,NK)
+    for i in range(1,len(word_list)):
+        new_pt = add_round_key(hex_to_state(word_list[i]),hex_to_state(word_list[i-1]))
+        word_list[i] = encrypt(new_pt,key,NK)
+    return ''.join(word_list)
+
+
+def cbc_decrypt(ciphertext,key,NK,iv):
+    #Decrypting cbc mode
+    word_list = word_split(ciphertext)
+    new_word = []
+    new_word.append(add_round_key(hex_to_state(decrypt(word_list[0],key)),hex_to_state(iv)))
+    for i in range(1,len(word_list)):
+        new_word.append(state_to_string(add_round_key(hex_to_state(decrypt(word_list[i],key,NK))),hex_to_state(word_list[i-1])))
+    return ''.join(new_word)
+
+        
+def ctr_encrypt(word,key,NK,counter):
+    #Implementing ctr mode..also works for decryption funnily enough
+    word_list = word_split(word)
+    for i in range(len(word_list)):
+        word_list[i] = state_to_string(add_round_key(hex_to_state(word_list[i]),hex_to_state(encrypt(hex_to_state(counter),key,NK))))
+        counter = hex(int(counter,16)+1).removeprefix('0x')
+    return ''.join(word_list)
 
 
 parser = argparse.ArgumentParser(
@@ -279,25 +289,30 @@ parser.add_argument('--mode', choices=['ecb', 'cbc', 'ctr'], required=True, help
 
 args = parser.parse_args()
 
-if len(args.key) != 32:
-    parser.error('Key must be a 128-bit hexadecimal string (32 hex characters).')
+#I would like it to now have maybe plaintext input
+
+if len(args.key) != 32 and len(args.key) != 48 and len(args.key)!=64:
+    parser.error('Key must be either 16, 24, or a 32 byte hexadecimal string.')
 if len(args.input) % 32 != 0 and args.decrypt:
     parser.error('Ciphertext length must be a multiple of 32 (16 bytes) for decryption.')
 else:
-    key = AESKeyExpansion(NK,NR,args.key).key_exp()
+    NK = len(args.key)//8
+    key = AESKeyExpansion(NK,args.key).key_exp() 
+    NR = len(key)
     if args.mode == 'ecb':
         if args.encrypt:
-            print(f"The ciphertext is: {ecb(pad(args.input), key)}")
+            print(f"The ciphertext is: {ecb_encrypt(pad(args.input), key, NR)}")
         elif args.decrypt:
-            print(f"The plaintext is: {unpad(ecb(args.input, key))}")
+            print(f"The plaintext is: {(unpad(ecb_decrypt(args.input, key, NR)))}")
     elif args.mode == 'cbc':
         if not args.iv:
             parser.error('IV is required for CBC mode.')
         if args.encrypt:
-            print(f"The ciphertext is: {cbc_encrypt(pad(args.input), key, args.iv)}")
+            print(f"The ciphertext is: {cbc_encrypt(pad(args.input), key, NR, args.iv)}")
         elif args.decrypt:
-            print(f"The plaintext is: {unpad(cbc_decrypt(args.input, key, args.iv))}")
+            print(f"The plaintext is: {unpad(cbc_decrypt(args.input, key, NR, args.iv))}")
     elif args.mode == 'ctr':
         if not args.iv:
             parser.error('Counter is required for CTR mode.')
-        print(f"The text is: {ctr_encrypt(pad(args.input), key, args.iv)}")
+        print(f"The text is: {ctr_encrypt(pad(args.input), key, NR, args.iv)}")
+

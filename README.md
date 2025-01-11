@@ -9,7 +9,7 @@ This project is a **work in progress** implementation of the Advanced Encryption
 My goal is to further expand this project by improving its functionality, optimizing the code, and adding more features such as:
 
 - Additional block cipher modes (e.g., GCM, OFB, CFB)
-- Support for larger key sizes (e.g., 192-bit, 256-bit)
+- Support for larger key sizes (e.g., 192-bit, 256-bit) - Now available
 - Detailed error handling and validation
 - Unit tests for better reliability
 
@@ -22,7 +22,7 @@ python aes.py <input> <key> <iv/counter> -e|-d --mode <mode>
 ```
 
 - `<input>`: The plaintext/ciphertext to be processed (hexadecimal format)
-- `<key>`: The encryption/decryption key (128-bit, 32 hexadecimal characters)
+- `<key>`: The encryption/decryption key (128-bit/192-bit/256-bit, 32/48/64 hexadecimal characters)
 - `<iv/counter>`: Initialization vector for CBC mode or counter for CTR mode (hexadecimal format)
 - `-e|--encrypt`: Flag to indicate encryption mode
 - `-d|--decrypt`: Flag to indicate decryption mode
@@ -38,7 +38,7 @@ python aes.py <input> <key> <iv/counter> -e|-d --mode <mode>
 
 - Decrypt:
   ```bash
-  python aes.py "69c4e0d86a7b0430d8cdb78070b4c55a" "000102030405060708090a0b0c0d0e0f" -d --mode ecb
+  python aes.py "69c4e0d86a7b0430d8cdb78070b4c55a" "8e73b0f7da0e6452c810f32b809079e562f8ead2522c6b7b" -d --mode ecb
   ```
 
 #### **CBC Mode**
@@ -64,7 +64,7 @@ python aes.py <input> <key> <iv/counter> -e|-d --mode <mode>
   ```
 
 ### Notes
-- The key length must be exactly 128 bits (32 hexadecimal characters).
+- The key length must be exactly 128 bits/192 bits/256 bits (32/48/64 hexadecimal characters).
 - Ensure the input data is padded for modes that require block alignment (e.g., CBC).
 - The initialization vector (IV) or counter must be provided for CBC and CTR modes, respectively.
 
@@ -74,11 +74,7 @@ python aes.py <input> <key> <iv/counter> -e|-d --mode <mode>
 - Implementing real-time encryption and decryption for files
 - Providing comprehensive documentation and examples
 
-## Contributions
-
-Feel free to fork the repository and submit pull requests. Suggestions, bug reports, and feature requests are always welcome.
-
 ## Disclaimer
 
-This project is for educational purposes only. Do not use this implementation for production-level encryption, as it may lack essential security features and optimizations.
+This project is for educational purposes only. If there's any mistakes/errors that you encounter, please let me know!
 
