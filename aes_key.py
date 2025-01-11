@@ -75,7 +75,6 @@ class AESKeyExpansion:
     def r_con(self,i):
         return [hex(self.rcon[i]),'00','00','00']
 
-
     #Final step: w[i] xor w[i-1] xor w[i-4(Nk; 4 in this case)]
 
     def word_exp(self,word):
@@ -97,21 +96,10 @@ class AESKeyExpansion:
             i = i.removeprefix('0x').zfill(2)
             s+=i
         return s
-
-    def extra_rounds(self,prev,round):
-        temp = self.sub_word(self.rot_word(prev))
-        r_cons = self.r_con(round)
-        return self.xor_func(temp,r_cons)
     
     def key_exp(self):
-        if self.NK==4:
-            NB,NR = 43,10
-        elif self.NK==6:
-            NB,NR = 51,12
-        elif self.NK==8:
-            NB,NR = 59,14
-        else:
-            exit('Wrong key length')
+        NR = 10 + ((len(self.key)*8)//32)
+        NB = (4*NR)+3
         temp = []
         arr = []
         arr.extend(self.word_list(self.key,[]))
@@ -131,10 +119,4 @@ class AESKeyExpansion:
             dict[k] = [arr[i],arr[i+1],arr[i+2],arr[i+3]]
             i+=4
         return dict
-            
-       
-
-    
-
-key = AESKeyExpansion(8,'603deb1015ca71be2b73aef0857d77811f352c073b6108d72d9810a30914dff4').key_exp()
-print(key)
+ 
