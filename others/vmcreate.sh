@@ -11,10 +11,10 @@ read -p 'Name: ' name
 
 read -p 'To enter the OStype, press 1, to list OStypes, press 2: ' selection
 #Now, what else do we need?
-if [[ '$selection' == '1' ]]; then
+if [ "$selection" = "1" ]; then
     read -p 'OSType: ' ostype
-elif [[ '$selection' == '2' ]]; then
-    VBoxMange list ostypes
+elif [[ "$selection" == "2" ]]; then
+    VBoxManage list ostypes
 else 
     echo "Unkown value entered, please re-run script and try again."
     exit 2
