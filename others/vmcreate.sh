@@ -6,7 +6,7 @@
 
 
 #Let's prompt the user to provide the name using getopts
-while getopts ':n:o:d:r:h' opt; do
+while getopts ':n:o:i:d:r:h' opt; do
     case $opt in
         n)
         name="$OPTARG"
@@ -16,6 +16,9 @@ while getopts ':n:o:d:r:h' opt; do
         ostype="$OPTARG"
         echo "OS Type: $ostype"
         ;;
+        i)
+        iso="$OPTARG"
+        echo "iso path: $iso"
         d)
         disk="$OPTARG"
         echo "Disk Size: $disk MB"
@@ -34,6 +37,28 @@ while getopts ':n:o:d:r:h' opt; do
 
 echo "Creating VM.."
 VBoxManage createvm --name $name --ostype $ostype --register
+
+echo "Creating HDD"
+VBoxManage createhd --filename /VirtualBox/$name/$name.vdi --size $disk
+
+echo "Creating SATA controller and attach iso and hdd..." 
+VBoxManage storagectl $name 'SATA Controller' --add sata --controller IntelAHCI
+VBoxManage storageattach $name --storagectl "SATA Controller" --port 0 --device 0 \ 
+--type hdd --medium /VirtualBox/$name/$name.vdi  
+
+VBoxManage storageattach $name --storagectl "SATA Controller" --port 0 --device \
+--type dvddrive --medium $iso
+
+echo "Enabling I/O APIC..thank me later"
+VBoxManage modifyvm $name --ioapic on
+
+echo "Configuring the boot order.."
+VBoxManage modifyvm $name --boot1 dvd --boot2 disk --boot3 none --boot4 none
+
+echo  "Configuring ram.."
+VBoxManage modifyvm $name --memory $ram
+
+
 
 
 # read -p 'if you wish to add/modify network adatpters, enter 1' net
